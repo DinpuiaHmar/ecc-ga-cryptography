@@ -31,14 +31,22 @@ def initialize_population(population_size, curve_parameters):
 
 def calculate_fitness(chromosome, target_point, curve_parameters):
     p = curve_parameters['p']  # Prime modulus
+    a = curve_parameters['a']  # Curve parameter a
+    b = curve_parameters['b']  # Curve parameter b
+
     x_target, y_target = target_point
+
+    # Check if the target_point is on the curve
+    left_side = (y_target ** 2) % p
+    right_side = (x_target ** 3 + a * x_target + b) % p
+    if left_side != right_side:
+        raise ValueError("Target point is not on the elliptic curve")
 
     # Calculate the distance between the chromosome and the target point
     distance_squared = (pow(chromosome.x - x_target, 2, p) + pow(chromosome.y - y_target, 2, p)) % p
 
     # Fitness value is inversely proportional to the distance
     fitness = 1 / (1 + distance_squared)
-
     return fitness
 
 def tournament_selection(population, tournament_size, curve_parameters, target_point):
@@ -173,12 +181,14 @@ def encrypt(plaintext, key, crossover_points):
     binary_plaintext = convert_to_binary(plaintext)
     print("Plaintext in binary: ", binary_plaintext)
     
-    # Pad the binary plaintext to a multiple of 8 bits
     padding_length = 8 - (len(binary_plaintext) % 8)
     binary_plaintext += '0' * padding_length
+    print("Padded length", binary_plaintext)
     
     binary_key = ''.join(format(num, '02b') for num in key)
+    print("key", binary_key)
     binary_key = '0' * (len(binary_plaintext) - len(binary_key)) + binary_key
+    print("padkey", binary_key)
     
     chromosomes = [binary_plaintext[i:i+8] for i in range(0, len(binary_plaintext), 8)]
     print("Segmented Data: ", chromosomes)
@@ -223,20 +233,20 @@ def decrypt(encrypted_data, key, crossover_points):
 
 # Example inputs
 curve_parameters = {
-    'p': 115792089237316195423570985008687907853269984665640564039457584007913129639747,  # Prime modulus
-    'a': 115792089237316195423570985008687907853073555626295579528752385087235569536556,  # Curve coefficient a
-    'b': 41058363725152142129326129780047268409114441015993725554835256314039467401291    # Curve coefficient b
+    'p': 3,  # Prime modulus
+    'a': 1,  # Curve coefficient a
+    'b': 1    # Curve coefficient b
 }
 
 target_point = (
-    55066263022277343669578718895168534326250603453777594175500187360389116729240,
-    32670510020758816978083085130507043184471273380659243275938904335757337482424
+    1,
+    0
 )
 
-population_size = 20
+population_size = 2
 mutation_rate = 0.1
-tournament_size = 5
-num_generations = 100
+tournament_size = 2
+num_generations = 2
 
 # Print the best key pair found
 print("----- KEYGEN -----")
@@ -263,23 +273,3 @@ print("----- ENCRYPTION -----")
 encrypted_data = encrypt(plaintext, key, crossover_points)
 print("----- DECRYPTION -----")
 decrypted_text = decrypt(encrypted_data, key, crossover_points)
-
-print("----- Compare the keygen time with other algorithms like RSA and normal ECC keygen with same input parameters -----")
-print('Our ECC with GA Keygen Duration: {}'.format(end_time - start_time))
-
-# RSA key generation
-start_time_rsa = datetime.now()
-rsa_private_key = rsa.generate_private_key(
-    public_exponent=65537,
-    key_size=2048,
-    backend=default_backend()
-)
-end_time_rsa = datetime.now()
-print("RSA Keygen Duration:             {}".format(end_time_rsa - start_time_rsa))
-
-# Normal ECC key generation
-start_time_ecc = datetime.now()
-curve = ec.SECP256R1()
-ecc_private_key = ec.generate_private_key(curve, default_backend())
-end_time_ecc = datetime.now()
-print("ECC Keygen Duration:             {}".format(end_time_ecc - start_time_ecc)) 
